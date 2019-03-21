@@ -1,4 +1,5 @@
 const csvtojson = require("csvtojson");
+const jsonexport = require("jsonexport/dist");
 
 export const parseCSV = (event) => {
   return new Promise((resolve, reject) => {
@@ -28,5 +29,31 @@ export const parseCSV = (event) => {
     reader.onerror = (err) => {
       reject(err)
     }
+  })
+}
+
+export const exportJsontoCSV = (json, fileName) => {
+  return new Promise((resolve,reject)=>{
+    jsonexport(json, (err, csv)=>{
+      if (err) return reject(err);
+      fileName = fileName ? fileName + ".csv" : "export.csv"
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, fileName);
+      } else {
+        var link = document.createElement("a");
+        if (link.download !== undefined) { // feature detection
+          // Browsers that support HTML5 download attribute
+          var url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", fileName);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }
+      resolve(csv);
+    });
   })
 }

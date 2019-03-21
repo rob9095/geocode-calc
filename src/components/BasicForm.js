@@ -57,6 +57,18 @@ class SimpleForm extends Component {
     });
   };
 
+  handleSelect = (value,e,key) => {
+    this.setState({
+      values: {
+        ...this.state.values,
+        [key]: {
+          value,
+          name: e.props.data.name,
+        }
+      }
+    })
+  }
+
   render() {
     const { getFieldDecorator } = this.props.form;
     let inputs = this.props.inputs.map(i => {
@@ -80,6 +92,7 @@ class SimpleForm extends Component {
               )(
                 <Select
                   placeholder={i.text}
+                  onChange={(val,e)=>this.handleSelect(val,e,i.id)}
                  >
                  {children}
                 </Select>

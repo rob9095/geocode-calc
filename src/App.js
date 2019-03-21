@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Upload, Select, Button, Switch, Icon, Menu, message } from 'antd';
-import { parseCSV } from './services/csv';
+import { parseCSV, exportJsontoCSV } from './services/csv';
 import { apiCall } from "./services/api";
 import BasicTable from './components/BasicTable';
 import BasicForm from './components/BasicForm';
@@ -76,37 +76,52 @@ class App extends Component {
     return res.results[0].address_components.find(ac=>ac.types.find(t=>t===queryKey)).long_name
   }
 
-  queryGeocode = (apiKey, queryKey, data, sumBy) => {
+  queryGeocode = async (apiKey, queryKey, data, sumBy) => {
     let foundData = []
     for (let row of data) {
       let url = `https://maps.googleapis.com/maps/api/geocode/json?address=${row[sumBy]}&sensor=true&key=${apiKey}`;
-      apiCall('get',url)
+      await apiCall('get',url)
       .then(res=>{
-        foundData.push({ ...row, foundValue: this.getGeocodeValue(res, queryKey)})
+        foundData.push({ ...row, [queryKey.name]: this.getGeocodeValue(res, queryKey.value)})
       })
       .catch(err=>{
         console.log(err)
       })
     }
-    this.sumData(foundData,this.state.mainTable.columns,'foundValue')
+    let summedData = this.sumData(foundData, this.state.mainTable.columns,queryKey.name)
+    console.log(summedData)
+    this.setState({
+      mainTable: {
+        ...this.state.mainTable,
+        data: summedData,
+        columns: [...this.state.mainTable.columns, {title: queryKey.name, dataIndex: queryKey.name, key: queryKey.name, selectOption: 'text'}]
+      }
+    })
   }
 
   sumData = (data,columns,sumBy) => {
-    let sumData = []
-    for (let row of data) {
-      let foundRow = sumData.find(r => r[sumBy] === row[sumBy])
-      if (foundRow) {
-        // add current rows number values to exisiting number values in existing row
-        for (let col of columns) {
-          foundRow[col.key] = foundRow[col.key] + row[col.key]
-        }
-        sumData = sumData.map(r=> r[sumBy] === row[sumBy] ? foundRow : r)
+    columns = columns.filter(col=>col.selectOption !== 'sum-by')
+    return data.reduce((accumulator, currentItem) => {
+      // check if the currentItem sumBy key is already in our summed array
+      const index = accumulator.findIndex((item) => (item[sumBy] === currentItem[sumBy]))
+      if (index < 0) {
+        // add the currentItem to the summed array
+        accumulator.push(currentItem);
       } else {
-        // create first row in sum table
-        sumData.push(row)
+        // loop the columns, sum the number fields, space seperate the text fields
+        for (let col of columns) {
+          accumulator[index][col.key] =
+            col.selectOption === "number"
+              ? Number(accumulator[index][col.key])
+              : accumulator[index][col.key];
+          accumulator[index][col.key] +=
+            col.selectOption === "number"
+              ? Number(currentItem[col.key])
+              : ` ${currentItem[col.key]}`;
+        }
       }
-    }
-    console.log(sumData)
+      return accumulator;
+    }, [])
   }
 
   render() {
@@ -147,6 +162,9 @@ class App extends Component {
                   Calculate
                 </Button>
               )}
+              <Button onClick={() => exportJsontoCSV(this.state.mainTable.data)}>
+                Export
+              </Button>
             </div>
           )}
         </div>
