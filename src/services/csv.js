@@ -6,16 +6,16 @@ export const parseCSV = (event) => {
     // Check for File API support.
     if (!window.FileReader) {
       reject({
-        errorType: 'error',
-        errorHeader: 'Please use a different browser',
-        errorList: ['File reader not supported in browser'],
+        type: 'error',
+        header: 'Please use a different browser',
+        list: ['File reader not supported in browser'],
       });
     }
     if (!event.target.files[0].name.endsWith('.csv')) {
       reject({
-        errorType: 'error',
-        errorHeader: 'Invalid File Format',
-        errorList: ['The imported file is not a .csv'],
+        type: 'error',
+        header: 'Invalid File Format',
+        list: ['The imported file is not a .csv'],
       });
     }
     const reader = new FileReader();
@@ -27,7 +27,12 @@ export const parseCSV = (event) => {
       resolve({ json, jsonLowerCase })
     }
     reader.onerror = (err) => {
-      reject(err)
+      console.log(err)
+      reject({
+        type: "error",
+        header: "Unable to Read File",
+        list: ["The imported file was unreadable, please check the file and try again"],
+      });
     }
   })
 }
