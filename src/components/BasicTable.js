@@ -7,7 +7,7 @@ class BasicTable extends Component {
 
   render() {
     return (
-      <div className="basic-table">
+      <div className="basic-table" style={{width: '100%'}}>
         <Table dataSource={this.props.data} columns={this.props.columns} />
       </div>
     );

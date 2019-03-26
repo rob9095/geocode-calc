@@ -153,6 +153,31 @@ class App extends Component {
     })
   }
 
+  convertColstoArr = (table) => {
+    let { columns, data } = this.state[table]
+    const sumBy = columns.find(col=>col.selectOption === 'sum-by')
+    columns = columns.filter(col=>col.key !== sumBy.key)
+    let newData = []
+    let i = 0
+    for (let row of data) {
+      for (let col of columns) {
+        newData.push({
+          sku: `${row[sumBy.key]}-${col.key}`,
+          quantity: row[col.key],
+          key: `${i}&${col.key}`,
+        });
+      }
+      i++
+    }
+    this.setState({
+      [table]: {
+        ...this.state[table],
+        columns: Object.keys(newData[0]).filter(c=>c!=='key').map(col=>({title: col, key: col, dataIndex: col, selectOption: col === 'sku' ? 'sum-by' : 'number'})),
+        data: newData,
+      }
+    })
+  }
+
   render() {
     return (
       <div className="App">
@@ -201,7 +226,19 @@ class App extends Component {
                   onChange={() => this.toggle("queryGeocode")}
                 />
               </div>
-              {!this.state.queryGeocode && (
+              <Button
+                size="large"
+                type="primary"
+                onClick={() => this.convertColstoArr('mainTable')}
+              >
+                Map Cols to Fields
+                </Button>
+              <Button
+                onClick={() => exportJsontoCSV(this.state.mainTable.data)}
+              >
+                Export
+              </Button>
+              {this.state.mainTable && (
                 <Button
                   size="large"
                   type="primary"
@@ -210,11 +247,6 @@ class App extends Component {
                   Calculate
                 </Button>
               )}
-              <Button
-                onClick={() => exportJsontoCSV(this.state.mainTable.data)}
-              >
-                Export
-              </Button>
             </div>
           )}
         </div>
