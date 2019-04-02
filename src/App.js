@@ -57,20 +57,55 @@ class App extends Component {
     .catch(error=>this.setState({error}))
   }
 
-  handleCalculate = (data) => {
-    return new Promise( async (resolve,reject) =>{
-      let sumBy = this.state.mainTable.columns.find(c => c.selectOption === 'sum-by')
-      if (!sumBy) {
-        this.setState({
-          error: {
-            type: 'error',
-            header: 'No Sum-by selected',
-            list: ['Please select a column to sum by'],
-          }
-        })
-        return
+  handleCalculate = async () => {
+    const sumBy = this.getSumBy('mainTable');
+    if (!sumBy) {
+      return
+    }
+    //set rocords to loading
+    this.setState({
+      mainTable: {
+        ...this.state.mainTable,
+        data: this.state.mainTable.data.map(r => ({ ...r, isLoading: true })),
       }
-      // add extra sumBy column to table and set records in data to loading
+    })
+    //get summed data
+    let data = await this.sumData(this.state.mainTable.data, this.state.mainTable.columns, sumBy.title,)
+    this.setState({
+      mainTable: {
+        ...this.state.mainTable,
+        data: data.map(r => ({ ...r, isLoading: false })),
+        error: {
+          header: `Success`,
+          list: [`Succesfully Updated ${data.length} record${data.length > 1 ? "s." : "."}`],
+          status: 'success',
+        }
+      }
+    })
+  }
+
+  getGeocodeValue = (res, queryKey, sumBy) => {
+    return res.results[0] ? res.results[0].address_components.find(ac=>ac.types.find(t=>t===queryKey)).long_name : `Not Found - ${sumBy}`
+  }
+
+  getSumBy = (table) => {
+    const sumBy = this.state[table].columns.find(c => c.selectOption === 'sum-by')
+    if (!sumBy) {
+      this.setState({
+        error: {
+          type: 'error',
+          header: 'No Sum-by selected',
+          list: ['Please select a column to sum by'],
+        }
+      })
+    }
+    return sumBy
+  }
+
+  queryGeocode = (data) => {
+    return new Promise( async (resolve,reject) => {
+      let { apiKey, queryKey, queryString } = data;
+      // add extra query for column to table and set records in data to loading
       this.setState({
         mainTable: {
           ...this.state.mainTable,
@@ -81,49 +116,42 @@ class App extends Component {
           ]
         }
       })
-      if (data.apiKey) {
-        // query geocode
-        let newData = await this.queryGeocode(data.apiKey, data.queryKey, this.state.mainTable.data, sumBy.key)
-        // sum the returned data by the queryKey
-        this.sumData(newData, this.state.mainTable.columns, data.queryKey.name,'mainTable',)
-      } else {
-        this.sumData(this.state.mainTable.data, this.state.mainTable.columns, sumBy.title, 'mainTable')
+      let foundData = []
+      let errors = []
+      // loop data and add geocode value to foundData
+      for (let row of this.state.mainTable.data) {
+        let url = `https://maps.googleapis.com/maps/api/geocode/json?address=${row[queryString.value]}&sensor=true&key=${apiKey}`;
+        await apiCall('get', url)
+          .then(res => {
+            let geoVal = this.getGeocodeValue(res, queryKey.value, row[queryString.value])
+            row = {
+              ...row,
+              [queryKey.name]: geoVal,
+              isLoading: false,
+            };
+            foundData.push(row)
+            geoVal === `Not Found - ${row[queryString.value]}` && errors.push(`API request for ${row[queryString.value]} did not find any data`);
+          })
+          .catch(err => {
+            console.log(err)
+            errors.push(`API request failed for ${row[queryString.value]}`)
+          })
       }
-      resolve({ text: 'Success', status: 'success' })
+      // update state with any errors and foundData
+      if (errors.length > 0) this.setState({ error: { list: errors, type: 'error', header: 'Geocode API Errors' } })
+      this.setState({
+        mainTable: {
+          ...this.state.mainTable,
+          data: foundData,
+        }
+      })
+      resolve({ text: `Succesfully Updated ${foundData.length} record${foundData.length > 1 ? "s." : "."}`, status: "success" });
     })
   }
 
-  getGeocodeValue = (res, queryKey, sumBy) => {
-    return res.results[0] ? res.results[0].address_components.find(ac=>ac.types.find(t=>t===queryKey)).long_name : `Not Found - ${sumBy}`
-  }
-
-  queryGeocode = async (apiKey, queryKey, data, sumBy) => {
-    let foundData = []
-    let errors = []
-    for (let row of data) {
-      let url = `https://maps.googleapis.com/maps/api/geocode/json?address=${row[sumBy]}&sensor=true&key=${apiKey}`;
-      await apiCall('get',url)
-      .then(res=>{
-        let geoVal = this.getGeocodeValue(res, queryKey.value, row[sumBy])
-        foundData.push({ ...row, [queryKey.name]: geoVal})
-        geoVal === `Not Found - ${row[sumBy]}` && errors.push(`API request for ${row[sumBy]} did not find any data`);
-        this.setState({mainTable:{
-          ...this.state.mainTable,
-          data: this.state.mainTable.data.map(r=> row.key === r.key ? ({...r,isLoading: false}) : ({...r,}))
-        }})
-      })
-      .catch(err=>{
-        console.log(err)
-        errors.push(`API request failed for ${row[sumBy]}`)
-      })
-    }
-    if (errors.length > 0) this.setState({error: {list: errors, type: 'error', header: 'Geocode API Errors'}})
-    return foundData
-  }
-
-  sumData = (data,columns,sumBy,table) => {
+  sumData = (data,columns,sumBy) => {
     let sumCols = columns.filter(col=>col.selectOption !== 'sum-by')
-    data = data.reduce((accumulator, currentItem) => {
+    return data.reduce((accumulator, currentItem) => {
       // check if the currentItem sumBy key is already in our summed array
       const index = accumulator.findIndex((item) => (item[sumBy] === currentItem[sumBy]))
       if (index < 0) {
@@ -144,37 +172,36 @@ class App extends Component {
       }
       return accumulator;
     }, [])
-    this.setState({
-      [table]: {
-        ...this.state[table],
-        data,
-        columns,
-      }
-    })
   }
 
-  convertColstoArr = (table) => {
-    let { columns, data } = this.state[table]
-    const sumBy = columns.find(col=>col.selectOption === 'sum-by')
-    columns = columns.filter(col=>col.key !== sumBy.key)
-    let newData = []
-    let i = 0
-    for (let row of data) {
-      for (let col of columns) {
-        newData.push({
-          sku: `${row[sumBy.key]}-${col.key}`,
-          quantity: row[col.key],
-          key: `${i}&${col.key}`,
-        });
+  convertColstoArr = (formValues) => {
+    return new Promise((resolve,reject) => {
+      const sumBy = this.getSumBy('mainTable');
+      if (!sumBy) {
+        reject({text: 'No Sum by', status: 'error'})
       }
-      i++
-    }
-    this.setState({
-      [table]: {
-        ...this.state[table],
-        columns: Object.keys(newData[0]).filter(c=>c!=='key').map(col=>({title: col, key: col, dataIndex: col, selectOption: col === 'sku' ? 'sum-by' : 'number'})),
-        data: newData,
+      let { columns, data } = this.state.mainTable
+      columns = columns.filter(col => col.key !== sumBy.key)
+      let newData = []
+      let i = 0
+      for (let row of data) {
+        for (let col of columns) {
+          newData.push({
+            [formValues.mapRef]: `${row[sumBy.key]}${formValues.seperator}${col.key}`,
+            [formValues.mapVal]: row[col.key],
+            key: `${i}&${col.key}`
+          });
+        }
+        i++
       }
+      this.setState({
+        mainTable: {
+          ...this.state.mainTable,
+          columns: Object.keys(newData[0]).filter(c => c !== 'key').map(col => ({ title: col, key: col, dataIndex: col, selectOption: col === 'sku' ? 'sum-by' : 'number' })),
+          data: newData,
+        }
+      })
+      resolve({text:`Succesfully mapped ${newData.length} new value${newData.length>1?"s.":"."}`, status: 'success'})
     })
   }
 
@@ -226,7 +253,7 @@ class App extends Component {
           </label>
           {this.state.mainTable && (
             <div>
-              <div style={{margin: '0 auto', width: 250}}>
+              <div style={{margin: '0 auto', width: 250, marginBottom: 12}}>
                 <Select
                   placeholder="Choose Function"
                   style={{width: '100%'}}
@@ -259,13 +286,15 @@ class App extends Component {
           </Button>
           )}
           {this.state.selected === 'map' && (
-            <Button
-              size="large"
-              type="primary"
-              onClick={() => this.convertColstoArr("mainTable")}
-            >
-              Map Headers to Fields
-          </Button>
+            <BasicForm
+              inputs={[
+                { span: 24, id: "mapRef", text: "Column for Mapped Headers", required: true },
+                { span: 24, id: "mapVal", text: "Column for Mapped Values", required: true },
+                { span: 24, id: "seperator", text: "Seperator" },
+              ]}
+              onSave={this.convertColstoArr}
+              submitText={"Map Headers to Fields"}
+            />
           )}
           {this.state.selected === 'geocode' && (
             <BasicForm
@@ -311,7 +340,8 @@ class App extends Component {
                   searchKey: "name"
                 }
               ]}
-              onSave={this.handleCalculate}
+              onSave={this.queryGeocode}
+              submitText={"Run Query"}
             />
           )}
         </div>

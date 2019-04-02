@@ -11,13 +11,14 @@ class SimpleForm extends Component {
     this.state = {
       visible: true,
       values: {},
-      confirmLoading: false
+      confirmLoading: false,
+      inputs: this.props.inputs,
     };
   }
 
   handleSubmit = e => {
     e.preventDefault();
-    this.props.form.validateFields((err, data) => {
+    this.props.form.validateFields(async (err, data) => {
       console.log(this.state.values);
       console.log("Received values of form: ", {
         ...data,
@@ -27,7 +28,7 @@ class SimpleForm extends Component {
         return;
       } else {
         this.setState({ confirmLoading: true });
-        this.props
+        await this.props
           .onSave({ ...data, ...this.state.values })
           .then(res => {
             this.handleAlert(res.text, res.status);
@@ -36,9 +37,9 @@ class SimpleForm extends Component {
             console.log(err);
             this.handleAlert(err.text, err.status);
           });
-        setTimeout(() => {
-          this.setState({ confirmLoading: false });
-        }, 2000);
+        this.setState({
+          confirmLoading: false,
+        })
       }
     });
   };
@@ -67,11 +68,16 @@ class SimpleForm extends Component {
         }
       }
     })
+    if (value === 'addNew') {
+      this.setState({
+        inputs: [...this.state.inputs, { id: `${value}-${e.props.data.name}`, text: e.props.data.name }]
+      })
+    }
   }
 
   render() {
     const { getFieldDecorator } = this.props.form;
-    let inputs = this.props.inputs.map(i => {
+    let inputs = this.state.inputs.map(i => {
       if (i.type === 'select') {
         const children = i.selectOptions.map(item => (
           <Option key={item.id} value={item.id} data={{ ...item }}>
@@ -81,7 +87,7 @@ class SimpleForm extends Component {
           </Option>))
         return (
           <Col xs={i.span * 3} md={i.span} key={i.id}>
-            <FormItem key={i.id} label={i.label}>
+            <FormItem key={i.id} label={i.label} style={{ marginBottom: 12 }}>
               {getFieldDecorator(i.id, {
                 rules: [
                   {
@@ -103,7 +109,7 @@ class SimpleForm extends Component {
       } else {
         return (
           <Col xs={i.span * 3} md={i.span} key={i.id}>
-            <FormItem key={i.id} label={i.label}>
+            <FormItem key={i.id} label={i.label} style={{marginBottom: 12}}>
               {getFieldDecorator(i.id, {
                 rules: [
                   {
@@ -137,8 +143,13 @@ class SimpleForm extends Component {
             />
           )}
           <Row gutter={24}>{inputs}</Row>
-          <Button onClick={this.handleSubmit} size="large" type="primary">
-            Run Query
+          <Button
+            onClick={this.handleSubmit}
+            size="large"
+            type="primary"
+            loading={this.state.confirmLoading}
+          >
+            {this.props.submitText}
           </Button>
         </Form>
       </div>
