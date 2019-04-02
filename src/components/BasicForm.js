@@ -138,7 +138,7 @@ class SimpleForm extends Component {
           )}
           <Row gutter={24}>{inputs}</Row>
           <Button onClick={this.handleSubmit} size="large" type="primary">
-            Calculate
+            Run Query
           </Button>
         </Form>
       </div>

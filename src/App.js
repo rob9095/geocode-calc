@@ -178,27 +178,33 @@ class App extends Component {
     })
   }
 
+  handleFunctionSelect = (selected) => {
+    this.setState({
+      selected,
+    })
+  }
+
   render() {
     return (
       <div className="App">
         <h1>Geocode Calculator</h1>
         {this.state.error && (
-          <Alert 
+          <Alert
             closable
-            afterClose={()=>this.setState({error: null})}
+            afterClose={() => this.setState({ error: null })}
             message={this.state.error.header}
-            description={(
+            description={
               <ul id="err-list">
-                {this.state.error.list.map((t,i) => (
+                {this.state.error.list.map((t, i) => (
                   <li key={i}>{t}</li>
                 ))}
               </ul>
-            )}
+            }
             type={this.state.error.type}
           />
         )}
         <div>
-          <label htmlFor="upload">
+          <label htmlFor="upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 10 }}>
             <div
               className="ant-upload ant-upload-drag"
               style={{ maxWidth: 250, padding: 10 }}
@@ -219,81 +225,102 @@ class App extends Component {
             </div>
           </label>
           {this.state.mainTable && (
-            <div style={{ display: "flex", padding: 10 }}>
-              <div style={{ padding: 10 }}>
-                <Switch
-                  checked={this.state.queryGeocode}
-                  onChange={() => this.toggle("queryGeocode")}
-                />
-              </div>
-              <Button
-                size="large"
-                type="primary"
-                onClick={() => this.convertColstoArr('mainTable')}
-              >
-                Map Cols to Fields
-                </Button>
-              <Button
-                onClick={() => exportJsontoCSV(this.state.mainTable.data)}
-              >
-                Export
-              </Button>
-              {this.state.mainTable && (
-                <Button
-                  size="large"
-                  type="primary"
-                  onClick={this.handleCalculate}
+            <div>
+              <div style={{margin: '0 auto', width: 250}}>
+                <Select
+                  placeholder="Choose Function"
+                  style={{width: '100%'}}
+                  onChange={this.handleFunctionSelect}
                 >
-                  Calculate
-                </Button>
-              )}
+                  <Option value="sum">Sum Number Fields</Option>
+                  <Option value="geocode">Query Google Geocode</Option>
+                  <Option value="map">Map Headers to Fields</Option>
+                  <Option value="export">Export Table</Option>
+                </Select>
+              </div>
             </div>
           )}
         </div>
-        {this.state.queryGeocode === true && (
-          <BasicForm
-            inputs={[
-              { span: 24, id: "apiKey", text: "API Key", required: true },
-              {
-                span: 24,
-                id: "queryKey",
-                text: "Query By",
-                required: true,
-                type: "select",
-                selectOptions: [
-                  {
-                    id: "locality",
-                    name: "City"
-                  },
-                  {
-                    id: "administrative_area_level_2",
-                    name: "County"
-                  },
-                  {
-                    id: "administrative_area_level_1",
-                    name: "State"
-                  },
-                  {
-                    id: "country",
-                    name: "Country"
-                  },
-                  {
-                    id: "postal_code",
-                    name: "Postal Code"
-                  }
-                ],
-                searchKey: "name"
-              }
-            ]}
-            onSave={this.handleCalculate}
-          />
-        )}
+        <div style={{maxWidth: 250}}>
+          {this.state.selected === 'export' && (
+            <Button
+              onClick={() => exportJsontoCSV(this.state.mainTable.data)}
+            >
+              Export
+          </Button>
+          )}
+          {this.state.selected === 'sum' && (
+            <Button
+              size="large"
+              type="primary"
+              onClick={this.handleCalculate}
+            >
+              Sum Number Fields
+          </Button>
+          )}
+          {this.state.selected === 'map' && (
+            <Button
+              size="large"
+              type="primary"
+              onClick={() => this.convertColstoArr("mainTable")}
+            >
+              Map Headers to Fields
+          </Button>
+          )}
+          {this.state.selected === 'geocode' && (
+            <BasicForm
+              inputs={[
+                { span: 24, id: "apiKey", text: "API Key", required: true },
+                {
+                  span: 24,
+                  id: "queryString",
+                  text: "Query String",
+                  required: true,
+                  type: "select",
+                  selectOptions: this.state.mainTable.columns.map(c => ({ id: c.key, name: c.title })),
+                  searchKey: "name"
+                },
+                {
+                  span: 24,
+                  id: "queryKey",
+                  text: "Query For",
+                  required: true,
+                  type: "select",
+                  selectOptions: [
+                    {
+                      id: "locality",
+                      name: "City"
+                    },
+                    {
+                      id: "administrative_area_level_2",
+                      name: "County"
+                    },
+                    {
+                      id: "administrative_area_level_1",
+                      name: "State"
+                    },
+                    {
+                      id: "country",
+                      name: "Country"
+                    },
+                    {
+                      id: "postal_code",
+                      name: "Postal Code"
+                    }
+                  ],
+                  searchKey: "name"
+                }
+              ]}
+              onSave={this.handleCalculate}
+            />
+          )}
+        </div>
         {this.state.mainTable && (
           <BasicTable
             {...this.state.mainTable}
             columns={this.state.mainTable.columns.map(c => ({
               ...c,
-              render: (text, record, index) =>(
+              render: (text, record, index) => (
                 <Skeleton paragraph={false} loading={record.isLoading}>
                   <span>{text}</span>
                 </Skeleton>
