@@ -22,7 +22,8 @@ export const parseCSV = (event) => {
     reader.readAsText(event.target.files[0]);
     reader.onload = async (e) => {
       let raw = await csvtojson().fromString(e.target.result)
-      let json = raw.map((l) => (Object.keys(l).reduce((c, k) => (c[k.toLowerCase()] = l[k], c), {})))
+      console.log(raw)
+      let json = raw.map((l) => (Object.keys(l).reduce((c, k) => (c[k.toLowerCase()] = typeof l[k] === 'object' ? l[k][""] : l[k], c), {})))
       let jsonLowerCase = await csvtojson().fromString(e.target.result.toLowerCase())
       resolve({ json, jsonLowerCase })
     }

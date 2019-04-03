@@ -43,10 +43,12 @@ class App extends Component {
           title: c,
           dataIndex: c,
           key: c,
-          selectOption: defaultValue,
+          selectOption: defaultValue
         };
       });
+      console.log(columns)
       const data = res.json.map((r,i)=>({...r, key: i}));
+      console.log(data)
       this.setState({
         [table]: {
           columns,
