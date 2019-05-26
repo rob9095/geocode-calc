@@ -4,9 +4,12 @@ import { parseCSV, exportJsontoCSV } from './services/csv';
 import { apiCall } from "./services/api";
 import BasicTable from './components/BasicTable';
 import BasicForm from './components/BasicForm';
+const Sentry = require('@sentry/node');
 
 const Dragger = Upload.Dragger;
 const Option = Select.Option;
+
+Sentry.init({ dsn: 'https://278eb46ba4584fa1b56341d53223dc73@sentry.io/1462420' });
 
 class App extends Component {
   state = {
