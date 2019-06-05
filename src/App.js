@@ -57,22 +57,7 @@ class App extends Component {
     })
     parseCSV(e)
     .then(res=>{
-<<<<<<< HEAD
       const {columns, data} = this.generateTableData(res.json)
-=======
-      const columns = Object.keys(res.json[0]).map((c, i) => {
-        const defaultValue = i === 0 || c === 'id' ? "sum-by" : isNaN(res.json[0][c]) ? 'text' : 'number';
-        return {
-          title: c,
-          dataIndex: c,
-          key: c,
-          selectOption: defaultValue
-        };
-      });
-      console.log(columns)
-      const data = res.json.map((r,i)=>({...r, key: i}));
-      console.log(data)
->>>>>>> d9e0e4e2fea0a4a62bd35e6166b66cf9a228b275
       this.setState({
         [table]: {
           columns,
