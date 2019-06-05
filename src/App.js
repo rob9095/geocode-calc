@@ -39,6 +39,17 @@ class App extends Component {
   };
 
   generateTableData = data => {
+    if (!Array.isArray(data) || typeof data[0] !== 'object') {
+      this.setState({
+        error: {
+          list: ['Unable to generate table data']
+        }
+      })
+      return {
+        columns: [],
+        rows: [],
+      }
+    }
     const columns = Object.keys(data[0]).map((c, i) => {
       const defaultValue =
         i === 0 || c === "id"
@@ -211,6 +222,12 @@ class App extends Component {
   };
 
   sumData = (data, columns, sumBy) => {
+    if (!data || !columns || !sumBy) {
+      this.setState({
+        error: {list: ['Unable to sum data!']}
+      })
+      return []
+    }
     let sumCols = columns.filter(col => col.selectOption !== "sum-by");
     return data.reduce((accumulator, currentItem) => {
       // check if the currentItem sumBy key is already in our summed array
@@ -313,7 +330,9 @@ class App extends Component {
       );
       let results = [];
       let lastSku = "";
-      for (let entry of res.feed.entry) {
+      let resArr = res.feed.entry.filter(e=>e.gsx$id && e.gsx$location && e.gsx$id.$t.length > 0)
+      console.log({resArr})
+      for (let entry of resArr) {
         if (!entry.gsx$location || !entry.gsx$id.$t) {
           continue;
         }
@@ -321,6 +340,9 @@ class App extends Component {
         let skuArr = entry.gsx$id.$t.split(",");
         for (let sku of skuArr) {
           sku = sku.startsWith(" ") ? sku.substring(1) : sku
+          if (!sku) {
+            continue
+          }
           if (sku.split("").filter(l => l === "-").length > 1) {
             //full sku push result
             results.push({ sku, location });
@@ -340,7 +362,7 @@ class App extends Component {
       }
 
       let { columns, data } = this.generateTableData(results);
-      //data = this.sumData(data,columns,'sku')
+      data = this.sumData(data,columns,'sku')
 
       this.setState({
         buttonLoading: false,
