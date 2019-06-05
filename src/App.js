@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Upload, Select, Button, Switch, Icon, Menu, message, Skeleton, Alert } from 'antd';
 import { parseCSV, exportJsontoCSV } from './services/csv';
 import { apiCall } from "./services/api";
+import { refArr } from "./data"
 import BasicTable from './components/BasicTable';
 import BasicForm from './components/BasicForm';
 
@@ -28,6 +29,24 @@ class App extends Component {
     })
   }
 
+  generateTableData = (data) => {
+    const columns = Object.keys(data[0]).map((c, i) => {
+      const defaultValue = i === 0 || c === 'id' ? "sum-by" : isNaN(data[0][c]) ? 'text' : 'number';
+      return {
+        title: c,
+        dataIndex: c,
+        key: c,
+        selectOption: defaultValue,
+      };
+    });
+    data = data.map((r, i) => ({ ...r, key: i }));
+    return {
+      columns,
+      data
+    }
+
+  }
+
   handleFileUpload = async (e,table) => {
     this.setState({
       [table]: {
@@ -37,16 +56,7 @@ class App extends Component {
     })
     parseCSV(e)
     .then(res=>{
-      const columns = Object.keys(res.json[0]).map((c, i) => {
-        const defaultValue = i === 0 || c === 'id' ? "sum-by" : isNaN(res.json[0][c]) ? 'text' : 'number';
-        return {
-          title: c,
-          dataIndex: c,
-          key: c,
-          selectOption: defaultValue,
-        };
-      });
-      const data = res.json.map((r,i)=>({...r, key: i}));
+      const {columns, data} = this.generateTableData(res.json)
       this.setState({
         [table]: {
           columns,
@@ -184,6 +194,76 @@ class App extends Component {
     })
   }
 
+
+// 'https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json'
+
+handleLocationsLink = async () => {
+  	try {
+      this.setState({
+        buttonLoading: true,
+        mainTable: {
+          data: [1,2,3,4,5].map(n=>({prop:n, key: n, isLoading: true})),
+          columns: [1,2,3,4,5].map(n=>({title: 'loading', dataIndex: 'prop', key: n,})),
+        }
+      })
+	  let res = await apiCall('get','https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json')
+    let results = []
+    let lastSku = ''
+    console.log(res)
+    	for (let entry of res.feed.entry) {
+        	if (!entry.gsx$location) {
+            	continue
+            }
+            let location = entry.gsx$location.$t
+    		let skuArr = entry.gsx$id.$t.split(",")
+        	for (let sku of skuArr) {
+        		if (sku.split('').filter(l=>l==='-').length > 1) {
+            		//full sku push result
+                    results.push({sku,location})
+                    lastSku = sku
+            	} else {
+                	if (sku.length === 1) {
+                    	//use lastSku
+                        results.push({sku: lastSku.split('-')[0]+" "+sku, location})
+                    } else if (sku.length > 1) {
+                    	//lookup
+                    	let matches = refArr.filter(r=>r.ref.includes(sku) && !r.sku.includes("-FBA"))
+            			for (let match of matches) {
+            				results.push({sku: match.sku, location})
+                            lastSku= match.sku
+            			}                
+                    }
+                }
+        	}
+    	}
+      results = results.reduce((acc, cv) => {
+        let foundIndex = acc.map(r => r.sku).indexOf(cv.sku)
+        if (foundIndex !== -1) {
+          acc[foundIndex] = {
+            ...acc[foundIndex],
+            location: acc[foundIndex].location + ", " + cv.location
+          }
+          return acc
+        } else {
+          return [...acc, { ...cv }]
+        }
+      }, [])
+
+      let { columns, data } = this.generateTableData(results)
+
+      this.setState({
+        buttonLoading: false,
+        mainTable: {
+          data,
+          columns,
+        }
+      })
+    } catch(err) {
+      console.log({ err })
+      this.setState({buttonLoading: false, error: {list: [err.toString()]}})
+    }
+}
+
   render() {
     return (
       <div className="App">
@@ -224,6 +304,7 @@ class App extends Component {
               <h3>Import CSV</h3>
             </div>
           </label>
+          <Button loading={this.state.buttonLoading} size="large" type="primary" onClick={this.handleLocationsLink}>Link Locations</Button>
           {this.state.mainTable && (
             <div>
               <div style={{margin: '0 auto', width: 250}}>
