@@ -331,7 +331,6 @@ class App extends Component {
       let results = [];
       let lastSku = "";
       let resArr = res.feed.entry.filter(e=>e.gsx$id && e.gsx$location && e.gsx$id.$t.length > 0)
-      console.log({resArr})
       for (let entry of resArr) {
         if (!entry.gsx$location || !entry.gsx$id.$t) {
           continue;
@@ -544,7 +543,7 @@ class App extends Component {
             columns={this.state.mainTable.columns.map(c => ({
               ...c,
               render: (text, record, index) => (
-                <Skeleton paragraph={false} loading={record.isLoading}>
+                <Skeleton paragraph={false} active loading={record.isLoading}>
                   <span>{text}</span>
                 </Skeleton>
               ),

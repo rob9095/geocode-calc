@@ -40,7 +40,8 @@ export const parseCSV = (event) => {
 
 export const exportJsontoCSV = (json, fileName) => {
   return new Promise((resolve,reject)=>{
-    jsonexport(json, (err, csv)=>{
+    let cleanJson = json.map(({isLoading, key, ...rest})=>rest)
+    jsonexport(cleanJson, (err, csv)=>{
       if (err) return reject(err);
       fileName = fileName ? fileName + ".csv" : "export.csv"
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
