@@ -8,14 +8,14 @@ export function setTokenHeader(token) {
 	}
 };
 
-export function apiCall(method, path, data){
+export function apiCall(method, path, data, headers){
 	return new Promise((resolve, reject) => {
-		return axios[method.toLowerCase()](path,data)
+		return axios[method.toLowerCase()](path,data,headers)
 		.then(res => {
 			return resolve(res.data);
 		})
 		.catch(err => {
-			return reject(err.response.data.error);
+			return reject(err.response || 'Error');
 		});
 	});
 }

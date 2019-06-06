@@ -3,10 +3,6 @@ import {
   Upload,
   Select,
   Button,
-  Switch,
-  Icon,
-  Menu,
-  message,
   Skeleton,
   Alert
 } from "antd";
@@ -20,7 +16,12 @@ const Dragger = Upload.Dragger;
 const Option = Select.Option;
 
 class App extends Component {
-  state = {};
+  constructor(props) {
+    super(props)
+    this.state = {
+
+    }
+  }
 
   toggle = key => {
     this.setState({ [key]: !this.state[key] });
@@ -305,71 +306,69 @@ class App extends Component {
     });
   };
 
-  // 'https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json'
-
   handleLocationsLink = async () => {
         try {
-      this.setState({
-        buttonLoading: true,
-        mainTable: {
-          data: [1,2,3,4,5].map(n => ({
-            prop: n,
-            key: n,
-            isLoading: true
-          })),
-          columns: [1, 2].map(n => ({
-            title: "",
-            dataIndex: "prop",
-            key: n
-          }))
-        }
-      });
-      let res = await apiCall(
-        "get",
-        "https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json"
-      );
-      let results = [];
-      let lastSku = "";
-      let resArr = res.feed.entry.filter(e=>e.gsx$id && e.gsx$location && e.gsx$id.$t.length > 0)
-      for (let entry of resArr) {
-        if (!entry.gsx$location || !entry.gsx$id.$t) {
-          continue;
-        }
-        let location = entry.gsx$location.$t;
-        let skuArr = entry.gsx$id.$t.split(",");
-        for (let sku of skuArr) {
-          sku = sku.startsWith(" ") ? sku.substring(1) : sku
-          if (!sku) {
-            continue
+        this.setState({
+          buttonLoading: true,
+          mainTable: {
+            data: [1,2,3,4,5].map(n => ({
+              prop: n,
+              key: n,
+              isLoading: true
+            })),
+            columns: [1, 2].map(n => ({
+              title: "",
+              dataIndex: "prop",
+              key: n
+            }))
           }
-          if (sku.split("").filter(l => l === "-").length > 1) {
-            //full sku push result
-            results.push({ sku, location });
-            lastSku = sku;
-          } else {
-            //lookup
-            let needle = sku.length === 1 ? lastSku+"-"+sku : sku
-            let matches = refArr.filter(
-              r => r.ref.includes(needle) && !r.sku.includes("-FBA")
-            );
-            for (let match of matches) {
-              results.push({ sku: match.sku, location });
-              lastSku = match.sku;
+        });
+        let res = await apiCall(
+          "get",
+          "https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json"
+        );
+        let results = [];
+        let lastSku = "";
+        let resArr = res.feed.entry.filter(e=>e.gsx$id && e.gsx$location && e.gsx$id.$t.length > 0)
+        for (let entry of resArr) {
+          if (!entry.gsx$location || !entry.gsx$id.$t) {
+            continue;
+          }
+          let Location = entry.gsx$location.$t;
+          let skuArr = entry.gsx$id.$t.split(",");
+          for (let sku of skuArr) {
+            sku = sku.startsWith(" ") ? sku.substring(1) : sku
+            if (!sku) {
+              continue
+            }
+            if (sku.split("").filter(l => l === "-").length > 1) {
+              //full sku push result
+              results.push({ sku, Location });
+              lastSku = sku;
+            } else {
+              //lookup
+              let needle = sku.length === 1 ? lastSku+"-"+sku : sku
+              let matches = refArr.filter(
+                r => r.ref.includes(needle) && !r.sku.includes("-FBA")
+              );
+              for (let match of matches) {
+                results.push({ sku: match.sku, Location });
+                lastSku = match.sku;
+              }
             }
           }
         }
-      }
 
-      let { columns, data } = this.generateTableData(results);
-      data = this.sumData(data,columns,'sku')
+        let { columns, data } = this.generateTableData(results);
+        data = this.sumData(data,columns,'sku')
 
-      this.setState({
-        buttonLoading: false,
-        mainTable: {
-          data,
-          columns
-        }
-      });
+        this.setState({
+          buttonLoading: false,
+          mainTable: {
+            data,
+            columns
+          }
+        });
 
     } catch (err) {
       console.log({ err });
@@ -378,6 +377,39 @@ class App extends Component {
         error: { list: [err.toString()] }
       });
     }
+  }
+
+  handleTeapplixProductUpdate = ({apiKey,lookupKey}) => {
+    return new Promise( async (resolve,reject) => {
+      this.setState({
+          teapplixLoading: true,
+        })
+        let body = []
+        for (let row of this.state.mainTable.data) {
+          let {isLoading, key, ...Product} = row
+          body.push({
+            itemName: row[lookupKey.value],
+            Product,
+          })
+        }
+        body.forEach(r=>delete r.Product[lookupKey.value])
+        console.log({body})
+        await apiCall('put','https://api.teapplix.com/api2/Product',body,{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
+        .then(res => {
+          console.log({res})
+          resolve({
+            text: `Updated ${res.Products.length} item ${res.Products.length > 1 ? 's.' : '.'}`,
+            status: 'success',
+          })
+        })
+        .catch(err=>{
+          console.log({err})
+          reject({
+            text: err.toString(),
+            status: 'error',
+          })
+        })      
+    })
   }
 
   render() {
@@ -447,6 +479,7 @@ class App extends Component {
                   <Option value="sum">Sum Number Fields</Option>
                   <Option value="geocode">Query Google Geocode</Option>
                   <Option value="map">Map Headers to Fields</Option>
+                  <Option value="teapplix">Update Products on Teapplix</Option>
                   <Option value="export">Export Table</Option>
                 </Select>
               </div>
@@ -454,6 +487,27 @@ class App extends Component {
           )}
         </div>
         <div style={{ maxWidth: 250 }}>
+          {this.state.selected === "teapplix" && (
+            <BasicForm
+              inputs={[
+                {
+                  span: 24,
+                  id: "lookupKey",
+                  text: "SKU on Teapplix",
+                  required: true,
+                  type: "select",
+                  selectOptions: this.state.mainTable.columns.map(c => ({
+                    id: c.key,
+                    name: c.title
+                  })),
+                  searchKey: "name"
+                },
+                { span: 24, id: "apiKey", text: "API Key" }
+              ]}
+              onSave={this.handleTeapplixProductUpdate}
+              submitText={"Send Update"}
+            />
+          )}
           {this.state.selected === "export" && (
             <Button onClick={() => exportJsontoCSV(this.state.mainTable.data)}>
               Export
