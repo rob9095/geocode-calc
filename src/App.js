@@ -328,7 +328,7 @@ class App extends Component {
           "https://spreadsheets.google.com/feeds/list/1ymfw7Ga6rjgWM_HzK0reGlz81pFs-M_94fFL3n4JZxQ/4/public/full?alt=json"
         );
         let results = [];
-        let lastSku = "";
+        let lastSku = {};
         let resArr = res.feed.entry.filter(e=>e.gsx$id && e.gsx$location && e.gsx$id.$t.length > 0)
         for (let entry of resArr) {
           if (!entry.gsx$location || !entry.gsx$id.$t) {
@@ -340,20 +340,32 @@ class App extends Component {
             sku = sku.startsWith(" ") ? sku.substring(1) : sku
             if (!sku) {
               continue
-            }
-            if (sku.split("").filter(l => l === "-").length > 1) {
-              //full sku push result
-              results.push({ sku, Location });
-              lastSku = sku;
             } else {
-              //lookup
-              let needle = sku.length === 1 ? lastSku+"-"+sku : sku
-              let matches = refArr.filter(
-                r => r.ref.includes(needle) && !r.sku.includes("-FBA")
-              );
-              for (let match of matches) {
-                results.push({ sku: match.sku, Location });
-                lastSku = match.sku;
+              let [parent, model, size] = sku.split("-")
+              if (parent && model && size && parent !== 'RH1909') {
+                // full sku push result
+                results.push({
+                  sku,
+                  Location,
+                  parent
+                })
+                lastSku = {parent,model,size}
+              } else {
+                //lookup
+                let needle = sku.length === 1 ? lastSku.parent+"-"+sku : sku.startsWith(".") ? lastSku.parent+"-"+lastSku.model+"-"+sku.substring(1) : sku
+                if (needle.length <= 3 || !/^[rh,am]{2}/.test(needle.toLowerCase())) {
+                  //bad needle (bad input on google sheet)
+                  results = [{sku: needle, Location, status: 'error'}, ...results]
+                  continue
+                }
+                let matches = refArr.filter(
+                  r => r.sku.includes(needle) && !r.sku.includes("-FBA")
+                );
+                for (let match of matches) {
+                  let [parent, model, size] = match.sku.split("-")
+                  results.push({ sku: match.sku, Location, parent });                  
+                  lastSku = {parent,model,size};
+                }
               }
             }
           }
@@ -392,7 +404,7 @@ class App extends Component {
             Product,
           })
         }
-        body.forEach(r=>delete r.Product[lookupKey.value])
+        body.forEach(r=>delete r.Product[lookupKey.value] && delete r.parent)
         console.log({body})
         await apiCall('put','https://api.teapplix.com/api2/Product',body,{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
         .then(res => {
