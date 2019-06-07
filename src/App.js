@@ -406,7 +406,7 @@ class App extends Component {
         }
         body.forEach(r=>delete r.Product[lookupKey.value] && delete r.parent)
         console.log({body})
-        await apiCall('put','https://api.teapplix.com/api2/Product',body,{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
+        await apiCall('put','https://cors-anywhere.herokuapp.com/https://api.teapplix.com/api2/Product',body,{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
         .then(res => {
           console.log({res})
           resolve({
