@@ -396,17 +396,17 @@ class App extends Component {
       this.setState({
           teapplixLoading: true,
         })
-        let body = []
+        let Products = []
         for (let row of this.state.mainTable.data) {
-          let {isLoading, key, ...Product} = row
-          body.push({
+          let {isLoading, key, parent, ...Product} = row
+          Products.push({
             itemName: row[lookupKey.value],
             Product,
           })
         }
-        body.forEach(r=>delete r.Product[lookupKey.value] && delete r.parent)
-        console.log({body})
-        await apiCall('put','https://cors-anywhere.herokuapp.com/https://api.teapplix.com/api2/Product',body,{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
+        Products.forEach(r=>delete r.Product[lookupKey.value])
+        console.log({Products})
+        await apiCall('put','https://cors-anywhere.herokuapp.com/https://api.teapplix.com/api2/Product',{Products},{headers: {"APIToken": apiKey, "content-type":"application/json","accept":"application/json"}})
         .then(res => {
           console.log({res})
           resolve({
