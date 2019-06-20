@@ -342,16 +342,17 @@ class App extends Component {
               continue
             } else {
               let [parent, model, size] = sku.split("-")
-              if (parent && model && size && parent !== 'RH1909') {
+              if (model && model.includes("/") || model && model.length > 1 && model.endsWith("M") || parent && model && size && parent !== 'RH1909') {
                 // full sku push result
                 results.push({
                   sku,
                   Location,
                   parent
                 })
-                lastSku = {parent,model,size}
+                lastSku = {parent,model,size,Location}
               } else {
                 //lookup
+                lastSku = lastSku.Location !== Location ? {} : lastSku
                 let needle = sku.length === 1 ? lastSku.parent+"-"+sku : sku.startsWith(".") ? lastSku.parent+"-"+lastSku.model+"-"+sku.substring(1) : sku
                 if (needle.length <= 3 || !/^[rh,am]{2}/.test(needle.toLowerCase())) {
                   //bad needle (bad input on google sheet)
@@ -364,7 +365,17 @@ class App extends Component {
                 for (let match of matches) {
                   let [parent, model, size] = match.sku.split("-")
                   results.push({ sku: match.sku, Location, parent });                  
-                  lastSku = {parent,model,size};
+                  lastSku = {parent,model,size,Location};
+                }
+                if (Location == "G10") {
+                  console.log({
+                    needle,
+                    matches,
+                    parent,
+                    model,
+                    size,
+                    lastSku
+                  })
                 }
               }
             }
